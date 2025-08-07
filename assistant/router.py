@@ -5,12 +5,19 @@ from typing import Dict, List
 
 from .config import Settings
 from .llm import LMStudioClient
-from .actions import ActionResult, open_file, search_web, search_youtube, open_in_brave
+from .actions import (
+    ActionResult,
+    open_file,
+    search_web,
+    search_youtube,
+    open_in_brave,
+    launch_app,
+)
 
 
 SYSTEM_PROMPT = (
     "You are a desktop assistant that decides one action to perform based on the user request. "
-    "Respond ONLY with compact JSON of the form: {\"action\": <one of 'open_file'|'search_web'|'search_youtube'|'open_url'>, \"args\": { ... }}. "
+    "Respond ONLY with compact JSON of the form: {\"action\": <one of 'open_file'|'search_web'|'search_youtube'|'open_url'|'launch_app'>, \"args\": { ... }}. "
     "Do not include any other text. If unsure, pick 'search_web'. For files, prefer absolute Windows paths if provided."
 )
 
@@ -37,6 +44,8 @@ def route_command(settings: Settings, client: LMStudioClient, user_text: str) ->
         return search_youtube(settings, args.get("query", user_text))
     if action == "open_url":
         return open_in_brave(settings, args.get("url", ""))
+    if action == "launch_app":
+        return launch_app(settings, args.get("app", ""))
 
     return search_web(settings, user_text)
 

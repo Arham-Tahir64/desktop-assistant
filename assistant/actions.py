@@ -63,3 +63,88 @@ def search_youtube(settings: Settings, query: str) -> ActionResult:
     return open_in_brave(settings, url)
 
 
+def _find_vscode_path() -> Optional[str]:
+    candidates = [
+        r"C:\\Program Files\\Microsoft VS Code\\Code.exe",
+        r"C:\\Program Files (x86)\\Microsoft VS Code\\Code.exe",
+        os.path.expandvars(r"%LOCALAPPDATA%\\Programs\\Microsoft VS Code\\Code.exe"),
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path):
+            return path
+    return None
+
+
+def _resolve_app_to_command(settings: Settings, app: str) -> Optional[list[str]]:
+    app_lower = app.strip().strip('"').lower()
+    if not app_lower:
+        return None
+
+    # If it's an explicit existing path, run it
+    expanded = os.path.expandvars(os.path.expanduser(app))
+    if os.path.isfile(expanded):
+        return [expanded]
+
+    # Known apps
+    if app_lower in {"notepad"}:
+        return [r"C:\\Windows\\System32\\notepad.exe"]
+    if app_lower in {"calculator", "calc"}:
+        return ["calc.exe"]
+    if app_lower in {"vscode", "code"}:
+        vs = _find_vscode_path()
+        return [vs] if vs else ["Code.exe"]
+    if app_lower in {"brave", "brave browser"}:
+        if settings.brave_path and os.path.isfile(settings.brave_path):
+            return [settings.brave_path]
+        # fallback to webbrowser default if not found, by opening about:blank
+        return None
+    if app_lower in {"chrome", "google chrome"}:
+        candidates = [
+            r"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+            r"C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe",
+            os.path.expandvars(r"%LOCALAPPDATA%\\Google\\Chrome\\Application\\chrome.exe"),
+        ]
+        for path in candidates:
+            if os.path.isfile(path):
+                return [path]
+        return ["chrome.exe"]
+    if app_lower in {"explorer", "file explorer"}:
+        return ["explorer.exe"]
+    if app_lower in {"cmd", "command prompt"}:
+        return [r"C:\\Windows\\System32\\cmd.exe"]
+    if app_lower in {"powershell", "pwsh"}:
+        # Try Windows PowerShell first, then pwsh if available
+        candidates = [
+            r"C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            r"C:\\Program Files\\PowerShell\\7\\pwsh.exe",
+        ]
+        for path in candidates:
+            if os.path.isfile(path):
+                return [path]
+        return ["powershell.exe"]
+
+    # Last resort: try as an executable name on PATH
+    if not app_lower.endswith(".exe"):
+        exe_guess = f"{app_lower}.exe"
+    else:
+        exe_guess = app_lower
+    return [exe_guess]
+
+
+def launch_app(settings: Settings, app: str) -> ActionResult:
+    if not app:
+        return ActionResult(False, "No app name provided")
+    cmd = _resolve_app_to_command(settings, app)
+    try:
+        if cmd is None:
+            # As a fallback open a blank page to at least show a browser
+            webbrowser.open("about:blank")
+            return ActionResult(True, f"Opened browser (fallback) for: {app}")
+        # For simple exe names, shell=True lets Windows resolve via PATH
+        use_shell = len(cmd) == 1 and not os.path.isabs(cmd[0])
+        subprocess.Popen(cmd, shell=use_shell)
+        return ActionResult(True, f"Launched: {app}")
+    except Exception as exc:  # noqa: BLE001
+        return ActionResult(False, f"Failed to launch '{app}': {exc}")
+
+

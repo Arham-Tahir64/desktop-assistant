@@ -6,6 +6,7 @@ import sys
 import webbrowser
 from dataclasses import dataclass
 from typing import Optional
+import shutil
 
 from .config import Settings
 
@@ -128,7 +129,52 @@ def _resolve_app_to_command(settings: Settings, app: str) -> Optional[list[str]]
         exe_guess = f"{app_lower}.exe"
     else:
         exe_guess = app_lower
+    which = shutil.which(exe_guess)
+    if which:
+        return [which]
+
+    # Try token-based guesses on PATH (e.g., "visual studio code" -> "code.exe")
+    tokens = [t for t in app_lower.replace("-", " ").split() if t]
+    for candidate in [
+        "".join(tokens) + ".exe",
+        tokens[-1] + ".exe" if tokens else "",
+    ]:
+        if not candidate:
+            continue
+        path = shutil.which(candidate)
+        if path:
+            return [path]
+
+    # Search Start Menu shortcuts (.lnk)
+    lnk = _find_start_menu_shortcut(app_lower)
+    if lnk:
+        return [lnk]
+
     return [exe_guess]
+
+
+def _find_start_menu_shortcut(app_lower: str) -> Optional[str]:
+    def normalize(text: str) -> str:
+        return "".join(ch for ch in text.lower() if ch.isalnum())
+
+    start_menu_dirs = [
+        os.path.expandvars(r"%ProgramData%\\Microsoft\\Windows\\Start Menu\\Programs"),
+        os.path.expandvars(r"%AppData%\\Microsoft\\Windows\\Start Menu\\Programs"),
+    ]
+    target_norm = normalize(app_lower)
+    for base in start_menu_dirs:
+        if not os.path.isdir(base):
+            continue
+        for root, _dirs, files in os.walk(base):
+            for name in files:
+                if not name.lower().endswith(".lnk"):
+                    continue
+                stem = os.path.splitext(name)[0]
+                stem_norm = normalize(stem)
+                # Simple contains or startswith match
+                if target_norm in stem_norm or stem_norm.startswith(target_norm):
+                    return os.path.join(root, name)
+    return None
 
 
 def launch_app(settings: Settings, app: str) -> ActionResult:
@@ -140,6 +186,11 @@ def launch_app(settings: Settings, app: str) -> ActionResult:
             # As a fallback open a blank page to at least show a browser
             webbrowser.open("about:blank")
             return ActionResult(True, f"Opened browser (fallback) for: {app}")
+        # Handle Start Menu shortcut directly via Shell
+        if len(cmd) == 1 and cmd[0].lower().endswith(".lnk"):
+            os.startfile(cmd[0])  # type: ignore[attr-defined]
+            return ActionResult(True, f"Launched: {app}")
+
         # For simple exe names, shell=True lets Windows resolve via PATH
         use_shell = len(cmd) == 1 and not os.path.isabs(cmd[0])
         subprocess.Popen(cmd, shell=use_shell)

@@ -57,8 +57,16 @@ Set via environment variables:
 - `BRAVE_PATH` (optional; auto-detect tries common install locations)
 
 ### Roadmap
-- Add microphone input (offline STT via Vosk)
+- Basic microphone input (offline STT via Vosk) — added minimal fixed-duration capture
 - Add TTS for spoken responses
 - Expand action set (open apps, control system, file search, etc.)
+
+### Voice (Vosk) — minimal test
+1) Download a small Vosk model (e.g., `vosk-model-small-en-us-0.15`) and extract it.
+2) Set `VOSK_MODEL_PATH` to that folder in your environment or `.env`.
+3) Test a 5-second capture:
+   ```powershell
+   python -c "from assistant.speech import transcribe_fixed_duration as t; print(t(5))"
+   ```
 
 

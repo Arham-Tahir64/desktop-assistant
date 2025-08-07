@@ -6,6 +6,7 @@ import sys
 from typing import Optional
 
 from dotenv import load_dotenv
+from .speech import transcribe_fixed_duration
 
 from .config import load_settings
 from .llm import LMStudioClient
@@ -19,11 +20,16 @@ def parse_args() -> argparse.Namespace:
         type=str,
         help="One-off text command (non-interactive)",
     )
+    parser.add_argument(
+        "--mic",
+        action="store_true",
+        help="Capture ~5s from microphone, transcribe with Vosk, and execute",
+    )
     return parser.parse_args()
 
 
 def main() -> int:
-    load_dotenv()  # load .env if present
+    load_dotenv()
     args = parse_args()
     settings = load_settings()
     client = LMStudioClient(settings)
@@ -33,7 +39,17 @@ def main() -> int:
         print(result.message)
         return 0 if result.ok else 1
 
-    # Simple REPL for now
+    if args.mic:
+        print("Listening (~5s)...")
+        spoken = transcribe_fixed_duration(5)
+        if not spoken:
+            print("No speech recognized.")
+            return 1
+        print(f"Heard: {spoken}")
+        result = route_command(settings, client, spoken)
+        print(result.message)
+        return 0 if result.ok else 1
+
     print("Desktop Assistant (LM Studio). Type 'exit' to quit.")
     while True:
         try:

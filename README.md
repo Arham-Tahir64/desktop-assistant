@@ -45,6 +45,11 @@ Voice input and richer actions will be added in follow-up commits.
    python -m assistant.main --text "open youtube and search for lo-fi beats"
    ```
 
+7) Try the mic shortcut (about 5 seconds of speech):
+   ```powershell
+   python -m assistant.main --mic
+   ```
+
 Example commands you can type:
 - "open brave and search for rust tutorials"
 - "search youtube for python packaging"

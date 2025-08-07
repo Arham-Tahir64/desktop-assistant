@@ -23,9 +23,9 @@ def open_file(path: str) -> ActionResult:
     if not os.path.exists(expanded):
         return ActionResult(False, f"Path not found: {expanded}")
     try:
-        os.startfile(expanded)  # type: ignore[attr-defined]
+        os.startfile(expanded)
         return ActionResult(True, f"Opened: {expanded}")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return ActionResult(False, f"Failed to open file: {exc}")
 
 
@@ -45,7 +45,7 @@ def open_in_brave(settings: Settings, url: str) -> ActionResult:
         else:
             webbrowser.open(url)
         return ActionResult(True, f"Opened in browser: {url}")
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         return ActionResult(False, f"Failed to open browser: {exc}")
 
 

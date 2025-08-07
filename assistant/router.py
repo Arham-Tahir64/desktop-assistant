@@ -22,7 +22,50 @@ SYSTEM_PROMPT = (
 )
 
 
+def _try_direct_app_launch(settings: Settings, user_text: str) -> ActionResult | None:
+    text = user_text.strip().strip(".")
+    lower = text.lower()
+    # Accept simple patterns: "open notepad", "launch code", "start chrome"
+    verbs = ("open ", "launch ", "start ")
+    if not any(lower.startswith(v) for v in verbs):
+        return None
+
+    # Extract the part after the verb
+    for v in verbs:
+        if lower.startswith(v):
+            remainder = text[len(v):].strip().strip('"').strip()
+            break
+    else:
+        return None
+
+    # Known apps to avoid routing normal sentences like "open youtube and search ..."
+    known_apps = {
+        "notepad",
+        "code",
+        "vscode",
+        "chrome",
+        "brave",
+        "explorer",
+        "file explorer",
+        "calc",
+        "calculator",
+        "cmd",
+        "powershell",
+        "pwsh",
+    }
+    remainder_lower = remainder.lower()
+    if any(app in remainder_lower for app in known_apps) or remainder_lower.endswith(".exe"):
+        return launch_app(settings, remainder)
+
+    return None
+
+
 def route_command(settings: Settings, client: LMStudioClient, user_text: str) -> ActionResult:
+    # Fast-path for app launches
+    direct = _try_direct_app_launch(settings, user_text)
+    if direct is not None:
+        return direct
+
     messages: List[Dict[str, str]] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "user", "content": user_text},

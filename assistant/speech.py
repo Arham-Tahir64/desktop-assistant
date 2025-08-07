@@ -19,7 +19,25 @@ def _load_model() -> Model:
             "VOSK_MODEL_PATH not set or invalid. Download a Vosk model (e.g., small English) "
             "and set VOSK_MODEL_PATH to the extracted folder."
         )
-    return Model(model_path)
+
+    candidates = [model_path, os.path.join(model_path, "model")]
+    for path in candidates:
+        if os.path.isdir(os.path.join(path, "am")) and os.path.isdir(os.path.join(path, "conf")):
+            return Model(path)
+
+    try:
+        subdirs = [d for d in os.listdir(model_path) if os.path.isdir(os.path.join(model_path, d))]
+        if len(subdirs) == 1:
+            candidate = os.path.join(model_path, subdirs[0])
+            if os.path.isdir(os.path.join(candidate, "am")) and os.path.isdir(os.path.join(candidate, "conf")):
+                return Model(candidate)
+    except Exception:
+        pass
+
+    raise RuntimeError(
+        "VOSK_MODEL_PATH does not look like a Vosk model directory (missing 'am'/'conf'). "
+        "Point it to the folder that directly contains those subfolders."
+    )
 
 
 def transcribe_fixed_duration(seconds: int = 5) -> str:

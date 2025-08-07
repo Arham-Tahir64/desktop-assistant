@@ -183,9 +183,7 @@ def launch_app(settings: Settings, app: str) -> ActionResult:
     cmd = _resolve_app_to_command(settings, app)
     try:
         if cmd is None:
-            # As a fallback open a blank page to at least show a browser
-            webbrowser.open("about:blank")
-            return ActionResult(True, f"Opened browser (fallback) for: {app}")
+            return ActionResult(False, f"Could not resolve app: {app}")
         # Handle Start Menu shortcut directly via Shell
         if len(cmd) == 1 and cmd[0].lower().endswith(".lnk"):
             os.startfile(cmd[0])  # type: ignore[attr-defined]

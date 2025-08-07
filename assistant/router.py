@@ -73,8 +73,14 @@ def route_command(settings: Settings, client: LMStudioClient, user_text: str) ->
     raw = client.chat(messages, temperature=0.0, max_tokens=256)
     try:
         data = json.loads(raw)
+        if isinstance(data, str):
+            # Some models may return a JSON string; try to parse again
+            data = json.loads(data)
+        if not isinstance(data, dict):
+            raise ValueError("Invalid JSON structure")
         action = data.get("action")
-        args = data.get("args", {}) or {}
+        args_raw = data.get("args", {})
+        args = args_raw if isinstance(args_raw, dict) else {}
     except Exception:
         # Fall back to web search
         return search_web(settings, user_text)
